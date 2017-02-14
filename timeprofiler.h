@@ -29,6 +29,13 @@ enum timingsType {
     AVERAGE
 };
 
+enum profilerMode {
+    UNDEFINED,
+    SAMPLES,
+    TRIPLE
+};
+
+
 class TimeProfiler
 {
 public:
@@ -42,6 +49,9 @@ public:
     double getTimingMs(int type);
 
 private:
+    unsigned short _mode;
+
+
     bool getFrequency(void);
     void clearAll(void);
     void addTiming(LARGE_INTEGER &diff);

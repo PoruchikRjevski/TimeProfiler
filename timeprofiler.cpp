@@ -1,4 +1,4 @@
-#include "qpctimingslib.h"
+#include "timeprofiler.h"
 
 TimeProfiler::TimeProfiler()
 {
