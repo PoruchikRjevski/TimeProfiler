@@ -5,121 +5,139 @@ TimeProfiler::TimeProfiler()
     return;
 }
 
-bool TimeProfiler::initQpcTimings(void)
+bool TimeProfiler::initProfiler(unsigned short mode)
 {
-    bool result = false;
+    this->resetAll();
 
-    this->clearAll();
+    this->_mode = mode;
 
-    result = this->getFrequency();
-
-    if(!result) {
-        cout << "error init TimeProfiler";
+    if (this->getFrequency()) {
+        return true;
     }
 
-    return result;
+    cout << "error init TimeProfiler";
+
+    return false;
 }
 
-bool TimeProfiler::startQpcTimings(void)
+bool TimeProfiler::start(void)
 {
-    bool result = false;
-
-    result = QueryPerformanceCounter(&this->currentWorkVars.startVal);
-
-    if(!result) {
-        cout << "error start TimeProfiler";
+    if (QueryPerformanceCounter(&this->_start)) {
+        return true;
     }
 
-    return result;
+    cout << "error start TimeProfiler";
+
+    return false;
 }
 
-bool TimeProfiler::stopQpcTimings()
+bool TimeProfiler::stop()
 {
-    bool result = false;
+    if (QueryPerformanceCounter(&this->_stop)) {
+        switch (this->_mode) {
+        case MODE_AVERAGE: {
+            this->_temporary = this->_stop.QuadPart - this->_start.QuadPart;
+            this->addAverageTiming(this->_temporary);
+        } break;
+        case MODE_MAPPED: {
 
-    result = QueryPerformanceCounter(&this->currentWorkVars.finishVal);
+        } break;
+        default: {
+            return false;
+        };
+        }
 
-    if(result) {
-        LARGE_INTEGER diff;
-        diff.QuadPart = this->currentWorkVars.finishVal.QuadPart -
-                this->currentWorkVars.startVal.QuadPart;
-
-        this->addTiming(diff);
+        return true;
     }
 
-    if(!result) {
-        cout << "error stop TimeProfiler";
-    }
+    cout << "error stop TimeProfiler";
 
-    return result;
+    return false;
 }
 
-double TimeProfiler::getTimingMs(int type)
+bool TimeProfiler::getTimings(timingsFinal &timings, unsigned short type)
 {
-    double result = 0;
-
-    switch(type) {
-    case MAXIMUM: {
-        result = static_cast<double>(this->currentRawTimings.maxTime.QuadPart);
-        result = 1000 * result / this->currentWorkVars.freq.QuadPart;
+    unsigned long typeMult = 1;
+    switch (type) {
+    case MU_SEC: {
+        typeMult = 1000000;
     } break;
-    case MINIMUM: {
-        result = static_cast<double>(this->currentRawTimings.minTime.QuadPart);
-        result = 1000 * result / this->currentWorkVars.freq.QuadPart;
-    } break;
-    case AVERAGE: {
-        result = static_cast<double>(this->currentRawTimings.avTime.QuadPart);
-        result = 1000 * result / this->currentWorkVars.freq.QuadPart;
+    case M_SEC: {
+        typeMult = 1000;
     } break;
     }
 
-    return result;
+    switch (this->_mode) {
+    case MODE_AVERAGE: {
+        timings.max = static_cast<double>(this->_timingsRaw.max.QuadPart);
+        timings.max = typeMult * timings.max / this->_freq.QuadPart;
+
+        timings.min = static_cast<double>(this->_timingsRaw.min.QuadPart);
+        timings.min = typeMult * timings.min / this->_freq.QuadPart;
+
+        timings.aver = static_cast<double>(this->_timingsRaw.aver.QuadPart);
+        timings.aver = typeMult * timings.aver / this->_freq.QuadPart;
+    } break;
+    case MODE_MAPPED: {
+
+    } break;
+    default: {
+        return false;
+    };
+    }
+
+    return true;
 }
 
 bool TimeProfiler::getFrequency(void)
 {
-    bool result = false;
-
-    result = QueryPerformanceFrequency(&this->currentWorkVars.freq);
-
-    if(!result) {
-        cout << "error get freq TimeProfiler";
+    if (QueryPerformanceFrequency(&this->_freq)) {
+        return true;
     }
 
-    return result;
+    cout << "error get freq TimeProfiler";
+
+    return false;
 }
 
-void TimeProfiler::clearAll(void)
+void TimeProfiler::resetAll(void)
 {
-    this->currentRawTimings.avTime.QuadPart = 0;
-    this->currentRawTimings.maxTime.QuadPart = 0;
-    this->currentRawTimings.minTime.QuadPart = 0;
+    this->_freq.QuadPart = 0;
+    this->_start.QuadPart = 0;
+    this->_stop.QuadPart = 0;
 
-    this->currentWorkVars.finishVal.QuadPart = 0;
-    this->currentWorkVars.freq.QuadPart = 0;
-    this->currentWorkVars.startVal.QuadPart = 0;
+    this->_timingsRaw.aver.QuadPart = 0;
+    this->_timingsRaw.max.QuadPart = 0;
+    this->_timingsRaw.min.QuadPart = 0;
+
+    this->_timingsFinal.aver = 0;
+    this->_timingsFinal.max = 0;
+    this->_timingsFinal.min = 0;
+
+    this->_temporary = 0;
+
+    this->_mode = MODE_UNDEFINED;
 
     return;
 }
 
-void TimeProfiler::addTiming(LARGE_INTEGER &diff)
+void TimeProfiler::addAverageTiming(LONGLONG &diff)
 {
-    if(this->currentRawTimings.maxTime.QuadPart == 0 ||
-            this->currentRawTimings.maxTime.QuadPart < diff.QuadPart) {
-        this->currentRawTimings.maxTime.QuadPart = diff.QuadPart;
+    if (this->_timingsRaw.max.QuadPart == 0
+            || this->_timingsRaw.max.QuadPart < diff) {
+        this->_timingsRaw.max.QuadPart = diff;
     }
 
-    if(this->currentRawTimings.minTime.QuadPart == 0 ||
-            this->currentRawTimings.minTime.QuadPart > diff.QuadPart) {
-        this->currentRawTimings.minTime.QuadPart = diff.QuadPart;
+    if (this->_timingsRaw.min.QuadPart == 0
+            || this->_timingsRaw.min.QuadPart > diff) {
+        this->_timingsRaw.min.QuadPart = diff;
     }
 
-    if(this->currentRawTimings.avTime.QuadPart == 0) {
-        this->currentRawTimings.avTime.QuadPart = diff.QuadPart;
+    if (this->_timingsRaw.aver.QuadPart == 0) {
+        this->_timingsRaw.aver.QuadPart = diff;
     }
     else {
-        this->currentRawTimings.avTime.QuadPart =
-                (this->currentRawTimings.avTime.QuadPart + diff.QuadPart)/2;
+        this->_timingsRaw.aver.QuadPart = (this->_timingsRaw.aver.QuadPart + diff)/2;
     }
 
     return;
