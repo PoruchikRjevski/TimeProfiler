@@ -5,11 +5,9 @@ TimeProfiler::TimeProfiler()
     return;
 }
 
-bool TimeProfiler::initProfiler(unsigned short mode)
+bool TimeProfiler::initProfiler(void)
 {
     this->resetAll();
-
-    this->_mode = mode;
 
     if (this->getFrequency()) {
         return true;
@@ -34,18 +32,9 @@ bool TimeProfiler::start(void)
 bool TimeProfiler::stop()
 {
     if (QueryPerformanceCounter(&this->_stop)) {
-        switch (this->_mode) {
-        case MODE_AVERAGE: {
-            this->_temporary = this->_stop.QuadPart - this->_start.QuadPart;
-            this->addAverageTiming(this->_temporary);
-        } break;
-        case MODE_MAPPED: {
+        _longlong tempDiff = this->_stop.QuadPart - this->_start.QuadPart;
 
-        } break;
-        default: {
-            return false;
-        };
-        }
+        this->addTiming(tempDiff);
 
         return true;
     }
@@ -55,38 +44,17 @@ bool TimeProfiler::stop()
     return false;
 }
 
-bool TimeProfiler::getTimings(timingsFinal &timings, unsigned short type)
+void TimeProfiler::getTimings(_ushort timeType, timingsFinal &timings, _ushort sortType)
 {
-    unsigned long typeMult = 1;
-    switch (type) {
-    case MU_SEC: {
-        typeMult = 1000000;
-    } break;
-    case M_SEC: {
-        typeMult = 1000;
-    } break;
-    }
+    _ulong typeMult = this->getMultByType(timeType);
 
-    switch (this->_mode) {
-    case MODE_AVERAGE: {
-        timings.max = static_cast<double>(this->_timingsRaw.max.QuadPart);
-        timings.max = typeMult * timings.max / this->_freq.QuadPart;
+    this->getAverageTimings(typeMult, timings);
 
-        timings.min = static_cast<double>(this->_timingsRaw.min.QuadPart);
-        timings.min = typeMult * timings.min / this->_freq.QuadPart;
+    this->getVectorTimings(typeMult, timings);
 
-        timings.aver = static_cast<double>(this->_timingsRaw.aver.QuadPart);
-        timings.aver = typeMult * timings.aver / this->_freq.QuadPart;
-    } break;
-    case MODE_MAPPED: {
+    this->sortVector(sortType, timings);
 
-    } break;
-    default: {
-        return false;
-    };
-    }
-
-    return true;
+    return;
 }
 
 bool TimeProfiler::getFrequency(void)
@@ -100,6 +68,15 @@ bool TimeProfiler::getFrequency(void)
     return false;
 }
 
+void TimeProfiler::addTiming(_longlong &diff)
+{
+    this->addAverageTiming(diff);
+
+    this->addTimingToMap(diff);
+
+    return;
+}
+
 void TimeProfiler::resetAll(void)
 {
     this->_freq.QuadPart = 0;
@@ -109,19 +86,17 @@ void TimeProfiler::resetAll(void)
     this->_timingsRaw.aver.QuadPart = 0;
     this->_timingsRaw.max.QuadPart = 0;
     this->_timingsRaw.min.QuadPart = 0;
+    this->_timingsRaw.timingsRawMap.clear();
 
     this->_timingsFinal.aver = 0;
     this->_timingsFinal.max = 0;
     this->_timingsFinal.min = 0;
-
-    this->_temporary = 0;
-
-    this->_mode = MODE_UNDEFINED;
+    this->_timingsFinal.timingsVec.clear();
 
     return;
 }
 
-void TimeProfiler::addAverageTiming(LONGLONG &diff)
+void TimeProfiler::addAverageTiming(_longlong &diff)
 {
     if (this->_timingsRaw.max.QuadPart == 0
             || this->_timingsRaw.max.QuadPart < diff) {
@@ -141,4 +116,81 @@ void TimeProfiler::addAverageTiming(LONGLONG &diff)
     }
 
     return;
+}
+
+void TimeProfiler::addTimingToMap(_longlong &diff)
+{
+    map<_longlong, _ulonglong>::iterator tempMappedElement
+            = this->_timingsRaw.timingsRawMap.find(diff);
+
+    if (tempMappedElement != this->_timingsRaw.timingsRawMap.end()) {
+        tempMappedElement->second++;
+    }
+    else {
+        this->_timingsRaw.timingsRawMap.insert(pair<_longlong, _ulonglong>(diff, 1));
+    }
+
+    return;
+}
+
+void TimeProfiler::getAverageTimings(_ushort mult, timingsFinal &timings)
+{
+    timings.max = static_cast<double>(this->_timingsRaw.max.QuadPart);
+    timings.max = mult * timings.max / this->_freq.QuadPart;
+
+    timings.min = static_cast<double>(this->_timingsRaw.min.QuadPart);
+    timings.min = mult * timings.min / this->_freq.QuadPart;
+
+    timings.aver = static_cast<double>(this->_timingsRaw.aver.QuadPart);
+    timings.aver = mult * timings.aver / this->_freq.QuadPart;
+
+    return;
+}
+
+void TimeProfiler::getVectorTimings(_ushort mult, timingsFinal &timings)
+{
+    for (auto &i : this->_timingsRaw.timingsRawMap) {
+        if (i.second != 0) {
+            double tmpTime = static_cast<double>(i.first);
+            tmpTime = mult * tmpTime / this->_freq.QuadPart;
+
+            timings.timingsVec.push_back(pair<_ulonglong, double>(i.second, tmpTime));
+        }
+    }
+
+    return;
+}
+
+void TimeProfiler::sortVector(_ushort sortType, timingsFinal &timings)
+{
+    switch (sortType) {
+    case BY_CASES: {
+        sort(timings.timingsVec.begin(), timings.timingsVec.end(),
+                  [](pair<_ulonglong, double> &a, pair<_ulonglong, double> &b)
+                    { return a.first > b.first; }
+            );
+    } break;
+    case BY_TIME: {
+        sort(timings.timingsVec.begin(), timings.timingsVec.end(),
+                  [](pair<_ulonglong, double> &a, pair<_ulonglong, double> &b)
+                    { return a.second > b.second; }
+            );
+    } break;
+    }
+
+    return;
+}
+
+_ulonglong TimeProfiler::getMultByType(_ushort &type)
+{
+    switch (type) {
+    case MU_SEC: {
+        return MULT_MU_SEC;
+    } break;
+    case M_SEC: {
+        return MULT_M_SEC;
+    } break;
+    }
+
+    return MULT_SEC;
 }
