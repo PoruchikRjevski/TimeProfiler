@@ -12,6 +12,8 @@
 #define MULT_M_SEC              1000
 #define MULT_MU_SEC             1000000
 
+#define HUNDRED_PERCENT         100
+
 typedef unsigned short _ushort;
 typedef LONGLONG _longlong;
 typedef unsigned long _ulong;
@@ -39,14 +41,17 @@ struct timingsFinal {
     double min;
     double max;
     double aver;
-    vector<pair<_ulonglong, double>> timingsVec;
+    vector<pair<float, double>> timingsVec;
 };
 
+
+// map<_longlong, _ulonglong> - <time, times>
 struct timingsRaw {
     LARGE_INTEGER min;
     LARGE_INTEGER max;
     LARGE_INTEGER aver;
     map<_longlong, _ulonglong> timingsRawMap;
+    _ulonglong iterations;
 };
 
 class TimeProfiler

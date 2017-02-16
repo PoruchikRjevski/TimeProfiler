@@ -36,6 +36,8 @@ bool TimeProfiler::stop()
 
         this->addTiming(tempDiff);
 
+        this->_timingsRaw.iterations++;
+
         return true;
     }
 
@@ -87,6 +89,7 @@ void TimeProfiler::resetAll(void)
     this->_timingsRaw.max.QuadPart = 0;
     this->_timingsRaw.min.QuadPart = 0;
     this->_timingsRaw.timingsRawMap.clear();
+    this->_timingsRaw.iterations = 0;
 
     this->_timingsFinal.aver = 0;
     this->_timingsFinal.max = 0;
@@ -154,7 +157,10 @@ void TimeProfiler::getVectorTimings(_ushort mult, timingsFinal &timings)
             double tmpTime = static_cast<double>(i.first);
             tmpTime = mult * tmpTime / this->_freq.QuadPart;
 
-            timings.timingsVec.push_back(pair<_ulonglong, double>(i.second, tmpTime));
+            float tmpPercent = static_cast<float>(i.second) * HUNDRED_PERCENT;
+            tmpPercent = tmpPercent / this->_timingsRaw.iterations;
+
+            timings.timingsVec.push_back(pair<float, double>(tmpPercent, tmpTime));
         }
     }
 
@@ -166,13 +172,13 @@ void TimeProfiler::sortVector(_ushort sortType, timingsFinal &timings)
     switch (sortType) {
     case BY_CASES: {
         sort(timings.timingsVec.begin(), timings.timingsVec.end(),
-                  [](pair<_ulonglong, double> &a, pair<_ulonglong, double> &b)
+                  [](pair<float, double> &a, pair<float, double> &b)
                     { return a.first > b.first; }
             );
     } break;
     case BY_TIME: {
         sort(timings.timingsVec.begin(), timings.timingsVec.end(),
-                  [](pair<_ulonglong, double> &a, pair<_ulonglong, double> &b)
+                  [](pair<float, double> &a, pair<float, double> &b)
                     { return a.second > b.second; }
             );
     } break;
