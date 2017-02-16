@@ -33,7 +33,7 @@ enum timeType : unsigned short {
 
 enum sortType : _ushort {
     BY_TIME,
-    BY_CASES
+    BY_RATIO
 };
 
 // vector<pair<times, time>> - "times" - number of cases of "time"

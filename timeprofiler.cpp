@@ -153,15 +153,13 @@ void TimeProfiler::getAverageTimings(_ushort mult, timingsFinal &timings)
 void TimeProfiler::getVectorTimings(_ushort mult, timingsFinal &timings)
 {
     for (auto &i : this->_timingsRaw.timingsRawMap) {
-        if (i.second != 0) {
-            double tmpTime = static_cast<double>(i.first);
-            tmpTime = mult * tmpTime / this->_freq.QuadPart;
+        float tmpPercent = static_cast<float>(i.second) * HUNDRED_PERCENT;
+        tmpPercent = tmpPercent / this->_timingsRaw.iterations;
 
-            float tmpPercent = static_cast<float>(i.second) * HUNDRED_PERCENT;
-            tmpPercent = tmpPercent / this->_timingsRaw.iterations;
+        double tmpTime = static_cast<double>(i.first);
+        tmpTime = mult * tmpTime / this->_freq.QuadPart;
 
-            timings.timingsVec.push_back(pair<float, double>(tmpPercent, tmpTime));
-        }
+        timings.timingsVec.push_back(pair<float, double>(tmpPercent, tmpTime));
     }
 
     return;
@@ -170,7 +168,7 @@ void TimeProfiler::getVectorTimings(_ushort mult, timingsFinal &timings)
 void TimeProfiler::sortVector(_ushort sortType, timingsFinal &timings)
 {
     switch (sortType) {
-    case BY_CASES: {
+    case BY_RATIO: {
         sort(timings.timingsVec.begin(), timings.timingsVec.end(),
                   [](pair<float, double> &a, pair<float, double> &b)
                     { return a.first > b.first; }
